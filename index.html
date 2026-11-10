@@ -1,0 +1,1331 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#ebeae6">
+  <meta name="description" content="日常記帳本 — 極簡 iOS 液態玻璃風格收支與分類統計帳本">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="日常記帳本">
+  <title>日常記帳本</title>
+  <link rel="manifest" href="manifest.json">
+  <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
+  <link rel="apple-touch-icon" href="apple-touch-icon.png">
+  <style>
+    :root {
+      /* 低飽和莫蘭迪色系與 iOS 液態玻璃變數 */
+      --bg-base: #eae8e3;
+      --ink-1: #2f3136;
+      --ink-2: #686b73;
+      --ink-3: #9699a1;
+      --sage: #528a6e;
+      --sage-bg: rgba(82, 138, 110, 0.12);
+      --rose: #b86b72;
+      --rose-bg: rgba(184, 107, 114, 0.12);
+      --accent: #7a8fa3;
+
+      /* Liquid Glass 材質層次 */
+      --glass-card: rgba(255, 255, 255, 0.48);
+      --glass-well: rgba(255, 255, 255, 0.62);
+      --glass-pill: rgba(255, 255, 255, 0.72);
+      --glass-dropdown: rgba(250, 249, 246, 0.88);
+      --blur-strong: blur(26px) saturate(165%);
+      --blur-soft: blur(16px) saturate(140%);
+
+      /* 液態高光與立體陰影 */
+      --spec-inset:
+        inset 0 1.5px 1px 0 rgba(255, 255, 255, 0.92),
+        inset 0 -1px 1.5px 0 rgba(255, 255, 255, 0.45),
+        inset 1px 0 1px 0 rgba(255, 255, 255, 0.65),
+        inset -1px 0 1px 0 rgba(255, 255, 255, 0.55);
+      --elev-rest:
+        0 16px 38px -12px rgba(55, 58, 68, 0.11),
+        0 4px 12px -3px rgba(55, 58, 68, 0.06);
+      --elev-float:
+        0 22px 44px -12px rgba(45, 48, 58, 0.16),
+        0 8px 20px -4px rgba(45, 48, 58, 0.09);
+      --elev-well:
+        0 8px 22px -8px rgba(55, 58, 68, 0.08),
+        0 2px 6px -1px rgba(55, 58, 68, 0.04);
+
+      /* 全域圓角倒角規範 */
+      --r-section: 30px;
+      --r-card: 22px;
+      --r-control: 18px;
+      --r-pill: 14px;
+      --r-tag: 10px;
+
+      /* 動畫曲線 */
+      --spring-lift: cubic-bezier(0.22, 1, 0.36, 1);
+      --spring-accordion: cubic-bezier(0.32, 0.72, 0, 1);
+    }
+
+    * {
+      box-sizing: border-box;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    html {
+      -webkit-text-size-adjust: 100%;
+      scroll-behavior: smooth;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      color: var(--ink-1);
+      background-color: var(--bg-base);
+      font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "PingFang TC", "Noto Sans TC", system-ui, sans-serif;
+      font-size: 15px;
+      line-height: 1.55;
+      padding: env(safe-area-inset-top, 0px) 0 calc(env(safe-area-inset-bottom, 0px) + 56px);
+      overflow-x: hidden;
+    }
+
+    /* 低飽和流體光暈背景 */
+    .ambient-canvas {
+      position: fixed;
+      inset: 0;
+      z-index: -1;
+      pointer-events: none;
+      background:
+        radial-gradient(65% 50% at 12% 8%, rgba(214, 224, 232, 0.75) 0%, transparent 65%),
+        radial-gradient(55% 45% at 88% 18%, rgba(235, 218, 220, 0.62) 0%, transparent 65%),
+        radial-gradient(60% 55% at 24% 85%, rgba(208, 222, 214, 0.65) 0%, transparent 70%),
+        radial-gradient(50% 50% at 82% 82%, rgba(228, 220, 206, 0.6) 0%, transparent 70%),
+        linear-gradient(160deg, #f3f2ee 0%, #e7e5e0 50%, #dedcd6 100%);
+    }
+
+    .shell {
+      max-width: 960px;
+      margin: 0 auto;
+      padding: 0 16px;
+    }
+
+    /* 共用液態玻璃材質與邊緣折射 */
+    .lg-surface {
+      position: relative;
+      background: var(--glass-card);
+      -webkit-backdrop-filter: var(--blur-strong);
+      backdrop-filter: var(--blur-strong);
+      box-shadow: var(--spec-inset), var(--elev-rest);
+      border: 1px solid rgba(255, 255, 255, 0.65);
+      border-radius: var(--r-section);
+      transition:
+        transform 0.32s var(--spring-lift),
+        box-shadow 0.32s var(--spring-lift),
+        background-color 0.25s ease;
+    }
+
+    .lg-surface::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      border-radius: inherit;
+      pointer-events: none;
+      background: linear-gradient(
+        145deg,
+        rgba(255, 255, 255, 0.62) 0%,
+        rgba(255, 255, 255, 0.08) 38%,
+        rgba(255, 255, 255, 0) 65%,
+        rgba(255, 255, 255, 0.22) 100%
+      );
+      z-index: 0;
+    }
+
+    .lg-surface > * {
+      position: relative;
+      z-index: 1;
+    }
+
+    /* 微浮起互動 (Hover / Focus Lift) */
+    .lift-item {
+      transition:
+        transform 0.28s var(--spring-lift),
+        box-shadow 0.28s var(--spring-lift),
+        background-color 0.22s ease;
+    }
+
+    @media (hover: hover) {
+      .lift-item:hover {
+        transform: translateY(-3px);
+        box-shadow: var(--spec-inset), var(--elev-float);
+      }
+      .lg-surface.section-card:hover {
+        transform: translateY(-2px);
+        box-shadow: var(--spec-inset), var(--elev-float);
+      }
+    }
+
+    .lift-item:active {
+      transform: translateY(0) scale(0.96);
+      transition-duration: 0.1s;
+    }
+
+    /* 頂部懸浮液態導覽列 */
+    header.topbar {
+      position: sticky;
+      top: max(10px, env(safe-area-inset-top, 10px));
+      z-index: 40;
+      margin: 14px 0 20px;
+      padding: 12px 16px 12px 20px;
+      border-radius: 26px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      flex-wrap: wrap;
+      background: rgba(252, 251, 248, 0.68);
+    }
+
+    .brand-group {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .brand-avatar {
+      width: 42px;
+      height: 42px;
+      border-radius: 13px;
+      object-fit: cover;
+      box-shadow: 0 6px 14px rgba(0, 0, 0, 0.14), inset 0 0 0 1px rgba(255, 255, 255, 0.4);
+      flex-shrink: 0;
+    }
+
+    .brand-text h1 {
+      font-size: clamp(1.25rem, 3.2vw, 1.55rem);
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      margin: 0;
+      line-height: 1.15;
+      color: var(--ink-1);
+    }
+
+    .brand-text .sub {
+      font-size: 0.76rem;
+      color: var(--ink-2);
+      margin-top: 2px;
+      letter-spacing: 0.01em;
+    }
+
+    .nav-actions {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    /* 下拉選單與手風琴展開動畫 (Accordion Dropdown) */
+    .dd {
+      position: relative;
+    }
+
+    .dd-btn {
+      font: inherit;
+      font-weight: 600;
+      font-size: 0.92rem;
+      color: var(--ink-1);
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 16px 10px 18px;
+      min-height: 44px;
+      border-radius: var(--r-control);
+      border: 1px solid rgba(255, 255, 255, 0.75);
+      background: var(--glass-pill);
+      -webkit-backdrop-filter: var(--blur-soft);
+      backdrop-filter: var(--blur-soft);
+      box-shadow: var(--spec-inset), var(--elev-well);
+    }
+
+    .dd-btn:focus-visible,
+    .icon-btn:focus-visible,
+    input[type="search"]:focus-visible,
+    .dd-opt:focus-visible {
+      outline: none;
+      box-shadow: var(--spec-inset), 0 0 0 3.5px rgba(122, 143, 163, 0.35), var(--elev-float);
+    }
+
+    .dd-btn .chev {
+      width: 15px;
+      height: 15px;
+      color: var(--ink-2);
+      transition: transform 0.38s var(--spring-accordion);
+    }
+
+    .dd.open .dd-btn .chev {
+      transform: rotate(180deg);
+    }
+
+    /* 手風琴展開容器：使用 grid-template-rows 0fr -> 1fr 達成流暢手風琴收放 */
+    .dd-panel {
+      position: absolute;
+      top: calc(100% + 10px);
+      right: 0;
+      z-index: 60;
+      min-width: 228px;
+      border-radius: var(--r-card);
+      background: var(--glass-dropdown);
+      -webkit-backdrop-filter: blur(28px) saturate(180%);
+      backdrop-filter: blur(28px) saturate(180%);
+      border: 1px solid rgba(255, 255, 255, 0.82);
+      box-shadow:
+        var(--spec-inset),
+        0 26px 58px -12px rgba(42, 45, 55, 0.24),
+        0 8px 22px -6px rgba(42, 45, 55, 0.12);
+      display: grid;
+      grid-template-rows: 0fr;
+      opacity: 0;
+      transform: translateY(-8px) scale(0.97);
+      transform-origin: top right;
+      pointer-events: none;
+      visibility: hidden;
+      transition:
+        grid-template-rows 0.42s var(--spring-accordion),
+        opacity 0.26s ease,
+        transform 0.38s var(--spring-accordion),
+        visibility 0s 0.42s;
+    }
+
+    .dd.open .dd-panel {
+      grid-template-rows: 1fr;
+      opacity: 1;
+      transform: translateY(0) scale(1);
+      pointer-events: auto;
+      visibility: visible;
+      transition:
+        grid-template-rows 0.44s var(--spring-accordion),
+        opacity 0.22s ease,
+        transform 0.38s var(--spring-accordion),
+        visibility 0s;
+    }
+
+    .dd-inner {
+      min-height: 0;
+      overflow: hidden;
+      border-radius: inherit;
+    }
+
+    .dd-scroll {
+      max-height: min(58vh, 380px);
+      overflow-y: auto;
+      overscroll-behavior: contain;
+      padding: 8px;
+      outline: none;
+    }
+
+    .dd-group {
+      font-size: 0.72rem;
+      font-weight: 650;
+      letter-spacing: 0.06em;
+      color: var(--ink-3);
+      padding: 10px 12px 4px;
+    }
+
+    .dd-opt {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      width: 100%;
+      border: 0;
+      background: transparent;
+      font: inherit;
+      font-size: 0.9rem;
+      color: var(--ink-1);
+      text-align: left;
+      padding: 10px 14px;
+      border-radius: var(--r-pill);
+      cursor: pointer;
+      min-height: 42px;
+      opacity: 0;
+      transform: translateY(-6px);
+      transition:
+        background-color 0.2s ease,
+        transform 0.26s var(--spring-lift),
+        opacity 0.24s ease;
+    }
+
+    .dd.open .dd-opt {
+      opacity: 1;
+      transform: translateY(0);
+      transition-delay: 0.06s;
+    }
+
+    @media (hover: hover) {
+      .dd-opt:hover {
+        background: rgba(255, 255, 255, 0.72);
+        transform: translateX(3px);
+      }
+    }
+
+    .dd-opt[aria-selected="true"] {
+      font-weight: 650;
+      background: rgba(255, 255, 255, 0.9);
+      box-shadow: inset 0 1px 0 #fff, 0 2px 8px -3px rgba(50, 52, 60, 0.14);
+    }
+
+    .dd-opt .tick {
+      width: 16px;
+      height: 16px;
+      color: var(--sage);
+      opacity: 0;
+      transform: scale(0.8);
+      transition: opacity 0.2s ease, transform 0.25s var(--spring-lift);
+    }
+
+    .dd-opt[aria-selected="true"] .tick {
+      opacity: 1;
+      transform: scale(1);
+    }
+
+    .dd-opt .cur {
+      font-size: 0.68rem;
+      color: var(--ink-2);
+      background: rgba(122, 143, 163, 0.16);
+      padding: 2px 7px;
+      border-radius: 8px;
+      font-weight: 600;
+      margin-left: 6px;
+    }
+
+    /* 倒角按鈕 (Icon Buttons) */
+    .icon-btn {
+      width: 44px;
+      height: 44px;
+      border-radius: var(--r-control);
+      border: 1px solid rgba(255, 255, 255, 0.75);
+      background: var(--glass-pill);
+      -webkit-backdrop-filter: var(--blur-soft);
+      backdrop-filter: var(--blur-soft);
+      box-shadow: var(--spec-inset), var(--elev-well);
+      display: inline-grid;
+      place-items: center;
+      cursor: pointer;
+      color: var(--ink-2);
+      flex-shrink: 0;
+    }
+
+    .icon-btn svg {
+      width: 19px;
+      height: 19px;
+    }
+
+    /* 內容區塊 (Section Cards) */
+    .section-card {
+      padding: 22px;
+      margin-bottom: 18px;
+      animation: floatIn 0.55s var(--spring-lift) both;
+    }
+
+    @keyframes floatIn {
+      from {
+        opacity: 0;
+        transform: translateY(12px) scale(0.99);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+      }
+    }
+
+    .sec-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      margin-bottom: 16px;
+    }
+
+    h2 {
+      font-size: 1.05rem;
+      font-weight: 650;
+      letter-spacing: -0.01em;
+      margin: 0;
+      color: var(--ink-1);
+    }
+
+    /* 三大指標卡 (Metrics Grid) */
+    .metrics {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 12px;
+    }
+
+    .metric {
+      background: var(--glass-well);
+      -webkit-backdrop-filter: var(--blur-soft);
+      backdrop-filter: var(--blur-soft);
+      border: 1px solid rgba(255, 255, 255, 0.76);
+      border-radius: var(--r-card);
+      padding: 16px 18px;
+      box-shadow: var(--spec-inset), var(--elev-well);
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+    }
+
+    .metric .l {
+      font-size: 0.78rem;
+      color: var(--ink-2);
+      font-weight: 600;
+      letter-spacing: 0.02em;
+    }
+
+    .metric .v {
+      font-size: clamp(1.22rem, 3.2vw, 1.75rem);
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      line-height: 1.2;
+      margin: 6px 0 4px;
+      font-variant-numeric: tabular-nums;
+      color: var(--ink-1);
+    }
+
+    .metric .d {
+      font-size: 0.74rem;
+      color: var(--ink-3);
+      font-weight: 500;
+    }
+
+    .pos {
+      color: var(--sage) !important;
+    }
+
+    .neg {
+      color: var(--rose) !important;
+    }
+
+    /* 搜尋欄與手風琴搜尋結果 */
+    .search-bar {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+    }
+
+    .search-wrap {
+      position: relative;
+      flex: 1;
+      display: flex;
+      align-items: center;
+    }
+
+    .search-wrap .s-ico {
+      position: absolute;
+      left: 15px;
+      width: 17px;
+      height: 17px;
+      color: var(--ink-3);
+      pointer-events: none;
+    }
+
+    input[type="search"] {
+      width: 100%;
+      font: inherit;
+      font-size: 0.94rem;
+      color: var(--ink-1);
+      appearance: none;
+      -webkit-appearance: none;
+      background: var(--glass-well);
+      -webkit-backdrop-filter: var(--blur-soft);
+      backdrop-filter: var(--blur-soft);
+      border: 1px solid rgba(255, 255, 255, 0.78);
+      border-radius: var(--r-control);
+      padding: 11px 16px 11px 42px;
+      min-height: 44px;
+      box-shadow: var(--spec-inset), var(--elev-well);
+    }
+
+    input[type="search"]::placeholder {
+      color: var(--ink-3);
+    }
+
+    /* 搜尋結果手風琴容器 */
+    .accordion-box {
+      display: grid;
+      grid-template-rows: 0fr;
+      opacity: 0;
+      transition:
+        grid-template-rows 0.4s var(--spring-accordion),
+        opacity 0.28s ease;
+    }
+
+    .accordion-box.open {
+      grid-template-rows: 1fr;
+      opacity: 1;
+    }
+
+    .accordion-inner {
+      min-height: 0;
+      overflow: hidden;
+    }
+
+    /* 圓餅圖與大類占比雙欄排版 */
+    .split {
+      display: grid;
+      grid-template-columns: minmax(210px, 280px) 1fr;
+      gap: 22px;
+      align-items: center;
+    }
+
+    .pie-holder {
+      background: rgba(255, 255, 255, 0.35);
+      border-radius: var(--r-card);
+      padding: 16px;
+      border: 1px solid rgba(255, 255, 255, 0.6);
+      box-shadow: var(--spec-inset);
+    }
+
+    svg.pie {
+      width: 100%;
+      height: auto;
+      max-width: 250px;
+      display: block;
+      margin: auto;
+      filter: drop-shadow(0 8px 16px rgba(60, 64, 75, 0.1));
+    }
+
+    svg.pie path {
+      transition: transform 0.42s var(--spring-lift), opacity 0.25s ease;
+      transform-origin: 150px 150px;
+      cursor: pointer;
+      stroke: rgba(255, 255, 255, 0.85);
+      stroke-width: 2.2;
+    }
+
+    svg.pie path:hover,
+    svg.pie path.on {
+      transform: scale(1.045);
+    }
+
+    /* 倒角內嵌表格區 */
+    .table-well {
+      background: var(--glass-well);
+      border: 1px solid rgba(255, 255, 255, 0.72);
+      border-radius: var(--r-card);
+      padding: 6px 12px;
+      box-shadow: var(--spec-inset), var(--elev-well);
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: separate;
+      border-spacing: 0 4px;
+      font-size: 0.9rem;
+      font-variant-numeric: tabular-nums;
+      color: var(--ink-1);
+    }
+
+    th {
+      text-align: left;
+      font-weight: 600;
+      color: var(--ink-2);
+      font-size: 0.75rem;
+      letter-spacing: 0.03em;
+      padding: 10px 10px 6px;
+      border-bottom: 1px solid rgba(150, 153, 161, 0.18);
+    }
+
+    td {
+      padding: 10px;
+      vertical-align: middle;
+      background: rgba(255, 255, 255, 0.42);
+      transition: background-color 0.2s ease, transform 0.2s var(--spring-lift);
+    }
+
+    tbody tr td:first-child {
+      border-top-left-radius: 12px;
+      border-bottom-left-radius: 12px;
+    }
+
+    tbody tr td:last-child {
+      border-top-right-radius: 12px;
+      border-bottom-right-radius: 12px;
+    }
+
+    @media (hover: hover) {
+      tbody tr:hover td {
+        background: rgba(255, 255, 255, 0.82);
+      }
+    }
+
+    td.n,
+    th.n {
+      text-align: right;
+      white-space: nowrap;
+      font-weight: 600;
+    }
+
+    .dot {
+      display: inline-block;
+      width: 10px;
+      height: 10px;
+      border-radius: 4px;
+      margin-right: 8px;
+      vertical-align: middle;
+      box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.75);
+    }
+
+    /* 分類膠囊標籤 */
+    .badge {
+      display: inline-block;
+      padding: 3px 9px;
+      border-radius: var(--r-tag);
+      font-size: 0.78rem;
+      font-weight: 600;
+      background: rgba(255, 255, 255, 0.75);
+      border: 1px solid rgba(255, 255, 255, 0.85);
+      color: var(--ink-1);
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+      white-space: nowrap;
+    }
+
+    .badge-sub {
+      background: rgba(122, 143, 163, 0.12);
+      border-color: rgba(122, 143, 163, 0.18);
+      color: var(--ink-2);
+      font-weight: 500;
+    }
+
+    .date-pill {
+      font-size: 0.82rem;
+      font-weight: 600;
+      color: var(--ink-2);
+      white-space: nowrap;
+    }
+
+    .muted {
+      color: var(--ink-3);
+      font-size: 0.85rem;
+    }
+
+    .status-box {
+      padding: 20px 24px;
+      text-align: center;
+    }
+
+    .err {
+      color: var(--rose);
+      font-weight: 600;
+    }
+
+    /* 行動版響應式微調 */
+    @media (max-width: 660px) {
+      .metrics {
+        grid-template-columns: 1fr 1fr;
+      }
+      .metrics .metric:last-child {
+        grid-column: 1 / -1;
+      }
+      .split {
+        grid-template-columns: 1fr;
+      }
+      .section-card {
+        padding: 16px;
+        border-radius: 24px;
+      }
+      header.topbar {
+        border-radius: 22px;
+        padding: 10px 12px 10px 14px;
+      }
+      .table-well {
+        padding: 4px 8px;
+      }
+      td, th {
+        padding: 8px 6px;
+      }
+      .hide-sm {
+        display: none;
+      }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before {
+        animation: none !important;
+        transition: opacity 0.15s ease !important;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="ambient-canvas" aria-hidden="true"></div>
+
+  <div class="shell">
+    <header class="topbar lg-surface">
+      <div class="brand-group">
+        <img class="brand-avatar" src="icon-192.png" alt="日常記帳本圖示" width="42" height="42">
+        <div class="brand-text">
+          <h1>日常記帳本</h1>
+          <div class="sub" id="asof" hidden></div>
+        </div>
+      </div>
+
+      <div class="nav-actions">
+        <div class="dd" id="dd">
+          <button class="dd-btn lift-item" id="ddBtn" type="button" aria-haspopup="listbox" aria-expanded="false" aria-label="選擇月份">
+            <span id="ddLabel">讀取中</span>
+            <svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M6 9l6 6 6-6"/>
+            </svg>
+          </button>
+          <div class="dd-panel" id="ddPanel">
+            <div class="dd-inner">
+              <div class="dd-scroll" id="ddScroll" role="listbox" aria-label="月份" tabindex="-1"></div>
+            </div>
+          </div>
+        </div>
+
+        <button class="icon-btn lift-item" id="reload" type="button" aria-label="重新讀取" title="重新讀取">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M20 11a8 8 0 1 0-2.3 5.7"/>
+            <path d="M20 4v7h-7"/>
+          </svg>
+        </button>
+      </div>
+    </header>
+
+    <div id="status" class="lg-surface status-box muted">正在同步日常記帳本資料…</div>
+
+    <main id="app" hidden>
+      <section class="lg-surface section-card">
+        <div class="sec-head">
+          <h2 id="mTitle"></h2>
+        </div>
+        <div class="metrics" id="metrics"></div>
+      </section>
+
+      <section class="lg-surface section-card">
+        <div class="sec-head">
+          <h2>關鍵字搜尋</h2>
+        </div>
+        <div class="search-bar">
+          <div class="search-wrap">
+            <svg class="s-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="11" cy="11" r="7"/>
+              <path d="M20 20l-3.5-3.5"/>
+            </svg>
+            <input class="lift-item" type="search" id="q" placeholder="搜尋品名或分類，例如：costco、加油、午餐" autocomplete="off">
+          </div>
+          <button class="icon-btn lift-item" id="clr" type="button" aria-label="清除搜尋" title="清除搜尋">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+              <path d="M6 6l12 12M18 6L6 18"/>
+            </svg>
+          </button>
+        </div>
+        <div class="accordion-box" id="sBox">
+          <div class="accordion-inner" id="sResult"></div>
+        </div>
+      </section>
+
+      <section class="lg-surface section-card" id="pieSec">
+        <div class="sec-head">
+          <h2 id="pTitle"></h2>
+        </div>
+        <div class="split">
+          <div class="pie-holder" id="pie"></div>
+          <div class="table-well">
+            <table>
+              <thead>
+                <tr>
+                  <th>大類</th>
+                  <th class="n">金額</th>
+                  <th class="n">占比</th>
+                </tr>
+              </thead>
+              <tbody id="catBody"></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <section class="lg-surface section-card">
+        <div class="sec-head">
+          <h2 id="lTitle"></h2>
+        </div>
+        <div class="table-well">
+          <table>
+            <thead>
+              <tr>
+                <th>日期</th>
+                <th>大類</th>
+                <th class="hide-sm">小類</th>
+                <th>品名</th>
+                <th class="n">金額</th>
+              </tr>
+            </thead>
+            <tbody id="ledger"></tbody>
+          </table>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <script>
+    const SHEET_ID = "1hdZuk6u1XQvevxlKiYhbFhK0lj3DMIn6JjcGY1HiWVk";
+    const URLS = [
+      "https://docs.google.com/spreadsheets/d/" + SHEET_ID + "/gviz/tq?tqx=out:csv&headers=1",
+      "https://docs.google.com/spreadsheets/d/" + SHEET_ID + "/export?format=csv"
+    ];
+    // 低飽和莫蘭迪色盤
+    const COLORS = [
+      "#8fa8be", "#c99da3", "#8eb3a2", "#cbb494",
+      "#a89bbd", "#a3b899", "#cfa58e", "#95b0bd",
+      "#bfa1b8", "#a9abb3", "#b5c4a1", "#9bb4cc",
+      "#c7a79e", "#9dc0be"
+    ];
+    const TODAY = new Intl.DateTimeFormat("en-CA", {
+      timeZone: "Asia/Taipei",
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit"
+    }).format(new Date());
+
+    const $ = (id) => document.getElementById(id);
+    const fmt = (n) => n.toLocaleString("en-US");
+    const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({
+      "&": "&amp;",
+      "<": "&lt;",
+      ">": "&gt;",
+      '"': "&quot;",
+      "'": "&#39;"
+    }[c]));
+
+    function parseCSV(text) {
+      const rows = [];
+      let row = [], f = "", q = false;
+      for (let i = 0; i < text.length; i++) {
+        const c = text[i];
+        if (q) {
+          if (c === '"') {
+            if (text[i + 1] === '"') { f += '"'; i++; }
+            else q = false;
+          } else f += c;
+        } else if (c === '"') q = true;
+        else if (c === ',') { row.push(f); f = ""; }
+        else if (c === '\n') { row.push(f); rows.push(row); row = []; f = ""; }
+        else if (c !== '\r') f += c;
+      }
+      if (f !== "" || row.length) { row.push(f); rows.push(row); }
+      return rows;
+    }
+
+    function normDate(s) {
+      const m = String(s).match(/(\d{4})\D(\d{1,2})\D(\d{1,2})/);
+      return m ? m[1] + "-" + m[2].padStart(2, "0") + "-" + m[3].padStart(2, "0") : "";
+    }
+
+    function toRecords(rows) {
+      const h = rows[0].map((x) => x.trim());
+      const ix = (n) => h.indexOf(n);
+      const I = {
+        d: ix("日期"),
+        t: ix("收支"),
+        c: ix("大類"),
+        s: ix("小類"),
+        n: ix("品名"),
+        a: ix("金額"),
+        no: ix("備註")
+      };
+      if (I.d < 0 || I.a < 0 || I.t < 0) throw new Error("試算表欄位與預期不符");
+      return rows.slice(1).map((r, k) => ({
+        k,
+        d: normDate(r[I.d]),
+        income: (r[I.t] || "").trim() === "收入",
+        cat: (r[I.c] || "").trim(),
+        sub: (r[I.s] || "").trim(),
+        name: I.n >= 0 ? (r[I.n] || "").trim() : "",
+        note: I.no >= 0 ? (r[I.no] || "").trim() : "",
+        amt: Number(String(r[I.a] || "").replace(/[^\d.-]/g, "")) || 0
+      }))
+      .filter((r) => r.d && r.d <= TODAY)
+      .sort((a, b) => a.d === b.d ? b.k - a.k : (a.d < b.d ? 1 : -1));
+    }
+
+    async function load() {
+      let lastErr;
+      for (const u of URLS) {
+        try {
+          const res = await fetch(u + "&_=" + Date.now(), { cache: "no-store" });
+          if (!res.ok) throw new Error("HTTP " + res.status);
+          const t = await res.text();
+          if (/^\s*</.test(t)) throw new Error("試算表未公開（回傳登入頁）");
+          return toRecords(parseCSV(t));
+        } catch (e) {
+          lastErr = e;
+        }
+      }
+      throw lastErr;
+    }
+
+    let RECS = [], month = "";
+    const label = (m) => m.slice(0, 4) + " 年 " + Number(m.slice(5)) + " 月";
+    const amtCell = (r) => `<td class="n ${r.income ? "pos" : "neg"}">${r.income ? "+" : "−"}${fmt(r.amt)}</td>`;
+    const fullName = (r) => {
+      const n = (r.name || "").trim(), o = (r.note || "").trim();
+      if (!o || n.includes(o)) return n;
+      if (!n || o.includes(n)) return o;
+      return o + " " + n;
+    };
+    const dash = (s) => s ? esc(s) : '<span class="muted">—</span>';
+    const catBadge = (s) => s ? `<span class="badge">${esc(s)}</span>` : '<span class="muted">—</span>';
+    const subBadge = (s) => s ? `<span class="badge badge-sub">${esc(s)}</span>` : '<span class="muted">—</span>';
+
+    function renderMonth() {
+      const L = label(month);
+      const recs = RECS.filter((r) => r.d.slice(0, 7) === month);
+      const inc = recs.filter((r) => r.income), exp = recs.filter((r) => !r.income);
+      const I = inc.reduce((s, r) => s + r.amt, 0);
+      const E = exp.reduce((s, r) => s + r.amt, 0);
+      const B = I - E;
+
+      $("mTitle").textContent = L + "帳本";
+      const isCur = month === TODAY.slice(0, 7), P = isCur ? "本月" : "當月";
+      const lastDay = new Date(Number(month.slice(0, 4)), Number(month.slice(5)), 0).getDate();
+      const range = isCur
+        ? `計至 ${TODAY}`
+        : `${L}整月（${Number(month.slice(5))}/1–${Number(month.slice(5))}/${lastDay}）`;
+
+      $("metrics").innerHTML =
+        `<div class="metric lift-item"><div class="l">${P}收入</div><div class="v pos">NT$ ${fmt(I)}</div><div class="d">${inc.length} 筆</div></div>` +
+        `<div class="metric lift-item"><div class="l">${P}支出</div><div class="v neg">NT$ ${fmt(E)}</div><div class="d">${exp.length} 筆</div></div>` +
+        `<div class="metric lift-item"><div class="l">${P}結餘</div><div class="v ${B >= 0 ? "pos" : "neg"}">NT$ ${fmt(B)}</div><div class="d">${range}</div></div>`;
+
+      const by = {};
+      exp.forEach((r) => {
+        by[r.cat || "未分類"] = (by[r.cat || "未分類"] || 0) + r.amt;
+      });
+      const cats = Object.entries(by).sort((a, b) => b[1] - a[1]);
+      $("pieSec").hidden = E <= 0;
+      $("pTitle").textContent = L + "支出大類占比";
+
+      let a0 = -Math.PI / 2, paths = "";
+      cats.forEach(([c, v], i) => {
+        const a1 = a0 + 2 * Math.PI * v / E;
+        const large = a1 - a0 > Math.PI ? 1 : 0;
+        const R = 138, r = 80, cx = 150, cy = 150;
+        const p = (ang, rad) => [cx + rad * Math.cos(ang), cy + rad * Math.sin(ang)].map((x) => x.toFixed(2)).join(" ");
+        const d = cats.length === 1
+          ? `M ${p(0, R)} A ${R} ${R} 0 1 1 ${p(Math.PI, R)} A ${R} ${R} 0 1 1 ${p(0, R)} M ${p(0, r)} A ${r} ${r} 0 1 0 ${p(Math.PI, r)} A ${r} ${r} 0 1 0 ${p(0, r)} Z`
+          : `M ${p(a0, R)} A ${R} ${R} 0 ${large} 1 ${p(a1, R)} L ${p(a1, r)} A ${r} ${r} 0 ${large} 0 ${p(a0, r)} Z`;
+        paths += `<path d="${d}" fill="${COLORS[i % COLORS.length]}" fill-rule="evenodd" data-i="${i}"><title>${esc(c)} NT$ ${fmt(v)}（${(v / E * 100).toFixed(1)}%）</title></path>`;
+        a0 = a1;
+      });
+
+      $("pie").innerHTML = `<svg class="pie" viewBox="0 0 300 300" role="img" aria-label="支出大類占比">${paths}
+        <text x="150" y="142" text-anchor="middle" font-size="13" fill="#686b73">${isCur ? "本月" : "當月"}支出</text>
+        <text x="150" y="168" text-anchor="middle" font-size="19" font-weight="700" fill="#2f3136">NT$ ${fmt(E)}</text></svg>`;
+
+      $("catBody").innerHTML = cats.map(([c, v], i) =>
+        `<tr data-i="${i}"><td><span class="dot" style="background:${COLORS[i % COLORS.length]}"></span>${esc(c)}</td><td class="n">NT$ ${fmt(v)}</td><td class="n">${(v / E * 100).toFixed(1)}%</td></tr>`
+      ).join("");
+
+      const hl = (i, on) => {
+        const el = $("pie").querySelector(`path[data-i="${i}"]`);
+        if (el) el.classList.toggle("on", on);
+      };
+      $("catBody").querySelectorAll("tr").forEach((tr) => {
+        tr.onpointerenter = () => hl(tr.dataset.i, true);
+        tr.onpointerleave = () => hl(tr.dataset.i, false);
+      });
+
+      $("lTitle").textContent = L + "流水帳";
+      $("ledger").innerHTML = recs.map((r) =>
+        `<tr>
+          <td><span class="date-pill">${r.d.slice(5).replace("-", "/")}</span></td>
+          <td>${catBadge(r.cat)}</td>
+          <td class="hide-sm">${subBadge(r.sub)}</td>
+          <td>${dash(fullName(r))}</td>
+          ${amtCell(r)}
+        </tr>`
+      ).join("") || `<tr><td colspan="5" class="muted" style="text-align:center;padding:18px">這個月還沒有紀錄。</td></tr>`;
+    }
+
+    function setupDropdown(months, cur) {
+      const panel = $("ddScroll"), dd = $("dd"), btn = $("ddBtn");
+      const years = [...new Set(months.map((m) => m.slice(0, 4)))];
+      panel.innerHTML = years.map((y) =>
+        `<div class="dd-group" role="presentation">${y} 年</div>` +
+        months.filter((m) => m.startsWith(y)).map((m) =>
+          `<button type="button" class="dd-opt" role="option" data-m="${m}" tabindex="-1">
+            <span>${Number(m.slice(5))} 月${m === cur ? '<span class="cur">本月</span>' : ''}</span>
+            <svg class="tick" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M5 12.5l4.5 4.5L19 7.5"/>
+            </svg>
+          </button>`
+        ).join("")
+      ).join("");
+
+      const opts = () => [...panel.querySelectorAll(".dd-opt")];
+      const sync = () => {
+        $("ddLabel").textContent = label(month);
+        opts().forEach((o) => o.setAttribute("aria-selected", o.dataset.m === month));
+      };
+      const choose = (m) => {
+        month = m;
+        sync();
+        renderMonth();
+        closeDD(true);
+      };
+
+      panel.onclick = (e) => {
+        const o = e.target.closest(".dd-opt");
+        if (o) choose(o.dataset.m);
+      };
+      btn.onclick = () => dd.classList.contains("open") ? closeDD(true) : openDD(true);
+      btn.onkeydown = (e) => {
+        if (["ArrowDown", "ArrowUp", "Enter", " "].includes(e.key)) {
+          e.preventDefault();
+          openDD(true);
+        }
+      };
+      panel.onkeydown = (e) => {
+        const os = opts(), i = os.indexOf(document.activeElement);
+        if (e.key === "ArrowDown") { e.preventDefault(); os[Math.min(os.length - 1, i + 1)].focus(); }
+        else if (e.key === "ArrowUp") { e.preventDefault(); os[Math.max(0, i - 1)].focus(); }
+        else if (e.key === "Home") { e.preventDefault(); os[0].focus(); }
+        else if (e.key === "End") { e.preventDefault(); os[os.length - 1].focus(); }
+        else if (e.key === "Escape" || e.key === "Tab") { e.preventDefault(); closeDD(true); }
+      };
+
+      document.addEventListener("pointerdown", (e) => {
+        if (!dd.contains(e.target)) closeDD(false);
+      });
+      document.addEventListener("keydown", (e) => {
+        if (e.key === "Escape") closeDD(true);
+      });
+
+      window.openDD = (focus) => {
+        dd.classList.add("open");
+        btn.setAttribute("aria-expanded", "true");
+        const sel = panel.querySelector('[aria-selected="true"]');
+        if (sel) {
+          const vh = Math.min(panel.scrollHeight, parseFloat(getComputedStyle(panel).maxHeight) || 380);
+          panel.scrollTop = Math.max(0, sel.offsetTop - vh / 2 + sel.offsetHeight / 2);
+          if (focus) sel.focus({ preventScroll: true });
+        }
+      };
+      window.closeDD = (focus) => {
+        if (!dd.classList.contains("open")) return;
+        dd.classList.remove("open");
+        btn.setAttribute("aria-expanded", "false");
+        if (focus) btn.focus();
+      };
+      sync();
+    }
+
+    function renderSearch() {
+      const raw = $("q").value.trim(), q = raw.toLowerCase();
+      const box = $("sResult"), wrap = $("sBox");
+      if (!q) {
+        wrap.classList.remove("open");
+        setTimeout(() => { if (!$("q").value.trim()) box.innerHTML = ""; }, 350);
+        return;
+      }
+      const m = RECS.filter((r) => [r.name, r.note, r.cat, r.sub].some((x) => x.toLowerCase().includes(q)));
+      wrap.classList.add("open");
+      if (!m.length) {
+        box.innerHTML = `<p class="muted" style="margin:14px 4px 2px">找不到符合「${esc(raw)}」的紀錄。</p>`;
+        return;
+      }
+      const E = m.filter((r) => !r.income).reduce((s, r) => s + r.amt, 0);
+      const I = m.filter((r) => r.income).reduce((s, r) => s + r.amt, 0);
+      box.innerHTML =
+        `<div class="metrics" style="margin-top:16px">
+          <div class="metric lift-item"><div class="l">符合筆數</div><div class="v">${fmt(m.length)} 筆</div></div>
+          <div class="metric lift-item"><div class="l">支出合計</div><div class="v neg">NT$ ${fmt(E)}</div></div>
+          <div class="metric lift-item"><div class="l">收入合計</div><div class="v pos">NT$ ${fmt(I)}</div></div>
+        </div>
+        <div class="table-well" style="margin-top:14px">
+          <table>
+            <thead>
+              <tr>
+                <th>日期</th>
+                <th class="hide-sm">收支</th>
+                <th>大類</th>
+                <th class="hide-sm">小類</th>
+                <th>品名</th>
+                <th class="n">金額</th>
+              </tr>
+            </thead>
+            <tbody>${
+              m.map((r) =>
+                `<tr>
+                  <td><span class="date-pill">${r.d}</span></td>
+                  <td class="hide-sm">${r.income ? "收入" : "支出"}</td>
+                  <td>${catBadge(r.cat)}</td>
+                  <td class="hide-sm">${subBadge(r.sub)}</td>
+                  <td>${dash(fullName(r))}</td>
+                  ${amtCell(r)}
+                </tr>`
+              ).join("")
+            }</tbody>
+          </table>
+        </div>`;
+    }
+
+    (async () => {
+      try {
+        RECS = await load();
+        const months = [...new Set(RECS.map((r) => r.d.slice(0, 7)))].sort().reverse();
+        const cur = TODAY.slice(0, 7);
+        if (!months.includes(cur)) months.unshift(cur);
+        month = cur;
+        const qm = new URLSearchParams(location.search).get("m");
+        if (qm && months.includes(qm)) month = qm;
+        setupDropdown(months, cur);
+        if (new URLSearchParams(location.search).get("open") === "1") openDD(false);
+        $("q").oninput = renderSearch;
+        $("clr").onclick = () => {
+          $("q").value = "";
+          renderSearch();
+          $("q").focus();
+        };
+        $("reload").onclick = () => location.reload();
+
+        renderMonth();
+        $("status").hidden = true;
+        $("app").hidden = false;
+      } catch (e) {
+        $("asof").textContent = "讀取失敗";
+        $("asof").hidden = false;
+        $("status").innerHTML = `<span class="err">無法讀取記帳本：${esc(e.message || e)}</span><br><span class="muted">請確認試算表已設為「知道連結的任何人都能檢視」。</span>`;
+      }
+    })();
+
+    // 註冊 PWA Service Worker 支援 Android Chrome 安裝至主畫面
+    if ("serviceWorker" in navigator) {
+      window.addEventListener("load", () => {
+        navigator.serviceWorker.register("sw.js").catch(() => {});
+      });
+    }
+  </script>
+
+  <!-- sushi-portal-dock-start -->
+  <style>
+    .hover-lift {
+      transition: transform 0.24s cubic-bezier(0.22, 1, 0.36, 1),
+                  box-shadow 0.24s cubic-bezier(0.22, 1, 0.36, 1),
+                  background-color 0.18s ease,
+                  border-color 0.18s ease,
+                  color 0.18s ease;
+    }
+    @media (hover: hover) {
+      .hover-lift:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 10px 22px rgba(45, 48, 58, 0.16);
+      }
+    }
+    .hover-lift:active {
+      transform: translateY(0px) scale(0.95);
+    }
+    .bottom-left-dock {
+      position: fixed;
+      left: 16px;
+      bottom: max(16px, env(safe-area-inset-bottom, 16px));
+      z-index: 150;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      pointer-events: none;
+    }
+    .liquid-glass-btn {
+      pointer-events: auto;
+      width: 42px;
+      height: 42px;
+      border-radius: 14px;
+      border: 1px solid rgba(255, 255, 255, 0.72);
+      background: linear-gradient(
+        135deg,
+        rgba(255, 255, 255, 0.62) 0%,
+        rgba(255, 255, 255, 0.32) 50%,
+        rgba(255, 255, 255, 0.48) 100%
+      );
+      backdrop-filter: blur(18px) saturate(170%);
+      -webkit-backdrop-filter: blur(18px) saturate(170%);
+      box-shadow:
+        0 8px 20px rgba(45, 48, 58, 0.12),
+        inset 0 1.5px 1.5px rgba(255, 255, 255, 0.85),
+        inset 0 -1px 1.5px rgba(0, 0, 0, 0.05);
+      color: #2f3136;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      padding: 0;
+      outline: none;
+    }
+    .liquid-glass-btn svg {
+      width: 18px;
+      height: 18px;
+      stroke: currentColor;
+      stroke-width: 2.2;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+      fill: none;
+      transition: transform 0.25s cubic-bezier(0.22, 1, 0.36, 1);
+    }
+    .liquid-glass-btn:active svg.refresh-icon {
+      transform: rotate(180deg);
+    }
+    .bottom-left-dock .liquid-glass-btn {
+      font: inherit;
+      appearance: none;
+      -webkit-appearance: none;
+      margin: 0;
+      box-sizing: border-box;
+    }
+    .bottom-left-dock .liquid-glass-btn svg {
+      display: block;
+      max-width: none;
+    }
+    .bottom-left-dock.sushi-portal-dock--embedded {
+      display: none !important;
+    }
+  </style>
+  <div class="bottom-left-dock">
+    <button id="liquid-back-btn" class="liquid-glass-btn hover-lift" type="button" title="返回" aria-label="返回">
+      <svg viewBox="0 0 24 24">
+        <path d="M15 18l-6-6 6-6" />
+      </svg>
+    </button>
+    <button id="liquid-refresh-btn" class="liquid-glass-btn hover-lift" type="button" title="重新整理" aria-label="重新整理">
+      <svg class="refresh-icon" viewBox="0 0 24 24">
+        <path d="M21 12a9 9 0 1 1-2.64-6.36" />
+        <polyline points="21 3 21 9 15 9" />
+      </svg>
+    </button>
+  </div>
+  <script>
+    (function () {
+      var PORTAL = 'https://sushi-portal-bard.web.app/';
+      var dock = document.querySelector('.bottom-left-dock');
+      if (!dock) return;
+      var embedded = false;
+      try { embedded = window.self !== window.top; } catch (e) { embedded = true; }
+      if (embedded) {
+        dock.classList.add('sushi-portal-dock--embedded');
+        return;
+      }
+      var back = document.getElementById('liquid-back-btn');
+      var refresh = document.getElementById('liquid-refresh-btn');
+      if (back) back.addEventListener('click', function (e) {
+        e.preventDefault();
+        e.stopPropagation();
+        if (window.history.length > 1) window.history.back();
+        else window.location.href = PORTAL;
+      });
+      if (refresh) refresh.addEventListener('click', function (e) {
+        e.preventDefault();
+        e.stopPropagation();
+        window.location.reload();
+      });
+    })();
+  </script>
+  <!-- sushi-portal-dock-end -->
+</body>
+</html>
