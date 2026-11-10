@@ -169,52 +169,63 @@
       position: sticky;
       top: max(10px, env(safe-area-inset-top, 10px));
       z-index: 40;
-      margin: 14px 0 20px;
-      padding: 12px 16px 12px 20px;
-      border-radius: 26px;
+      margin: 12px 0 18px;
+      padding: 10px 14px 10px 16px;
+      border-radius: 24px;
       display: flex;
       align-items: center;
       justify-content: space-between;
-      gap: 12px;
-      flex-wrap: wrap;
+      gap: 10px;
+      flex-wrap: nowrap;
       background: rgba(252, 251, 248, 0.68);
     }
 
     .brand-group {
       display: flex;
       align-items: center;
-      gap: 12px;
+      gap: 10px;
+      min-width: 0;
+      flex-shrink: 1;
     }
 
     .brand-avatar {
-      width: 42px;
-      height: 42px;
-      border-radius: 13px;
+      width: 38px;
+      height: 38px;
+      border-radius: 12px;
       object-fit: cover;
-      box-shadow: 0 6px 14px rgba(0, 0, 0, 0.14), inset 0 0 0 1px rgba(255, 255, 255, 0.4);
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12), inset 0 0 0 1px rgba(255, 255, 255, 0.4);
       flex-shrink: 0;
     }
 
+    .brand-text {
+      min-width: 0;
+    }
+
     .brand-text h1 {
-      font-size: clamp(1.25rem, 3.2vw, 1.55rem);
+      font-size: clamp(1.08rem, 3.8vw, 1.35rem);
       font-weight: 700;
       letter-spacing: -0.02em;
       margin: 0;
       line-height: 1.15;
       color: var(--ink-1);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
     }
 
     .brand-text .sub {
-      font-size: 0.76rem;
+      font-size: 0.74rem;
       color: var(--ink-2);
-      margin-top: 2px;
+      margin-top: 1px;
       letter-spacing: 0.01em;
+      white-space: nowrap;
     }
 
     .nav-actions {
       display: flex;
       align-items: center;
-      gap: 10px;
+      gap: 8px;
+      flex-shrink: 0;
     }
 
     /* 下拉選單與手風琴展開動畫 (Accordion Dropdown) */
@@ -263,10 +274,12 @@
     /* 手風琴展開容器：使用 grid-template-rows 0fr -> 1fr 達成流暢手風琴收放 */
     .dd-panel {
       position: absolute;
-      top: calc(100% + 10px);
+      top: calc(100% + 8px);
       right: 0;
+      left: auto;
       z-index: 60;
-      min-width: 228px;
+      min-width: 210px;
+      max-width: calc(100vw - 32px);
       border-radius: var(--r-card);
       background: var(--glass-dropdown);
       -webkit-backdrop-filter: blur(28px) saturate(180%);
@@ -779,13 +792,6 @@
             </div>
           </div>
         </div>
-
-        <button class="icon-btn lift-item" id="reload" type="button" aria-label="重新讀取" title="重新讀取">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M20 11a8 8 0 1 0-2.3 5.7"/>
-            <path d="M20 4v7h-7"/>
-          </svg>
-        </button>
       </div>
     </header>
 
@@ -1185,7 +1191,6 @@
           renderSearch();
           $("q").focus();
         };
-        $("reload").onclick = () => location.reload();
 
         renderMonth();
         $("status").hidden = true;
@@ -1302,7 +1307,7 @@
   </div>
   <script>
     (function () {
-      var PORTAL = 'https://sushi-portal-bard.web.app/';
+      var PORTAL = 'https://bard0228.github.io/3d-sushi-portal/index.html';
       var dock = document.querySelector('.bottom-left-dock');
       if (!dock) return;
       var embedded = false;
@@ -1316,8 +1321,7 @@
       if (back) back.addEventListener('click', function (e) {
         e.preventDefault();
         e.stopPropagation();
-        if (window.history.length > 1) window.history.back();
-        else window.location.href = PORTAL;
+        window.location.href = PORTAL;
       });
       if (refresh) refresh.addEventListener('click', function (e) {
         e.preventDefault();
