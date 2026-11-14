@@ -1,13 +1,13 @@
 {
   "name": "日常記帳本",
   "short_name": "日常記帳本",
-  "description": "個人日常收支與分類統計帳本",
+  "description": "日常收支與分類統計帳本",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",
   "orientation": "portrait",
-  "background_color": "#ebeae6",
-  "theme_color": "#ebeae6",
+  "background_color": "#f0f3f8",
+  "theme_color": "#f0f3f8",
   "lang": "zh-Hant",
   "icons": [
     {
